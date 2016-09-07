@@ -1,0 +1,11 @@
+# Redshift db user settings
+db_user = ''
+db_host = ''
+db_pwd = ''
+db_name = ''
+
+# AWS credentials to upload to S3 and load from S3 to Redshift
+aws_access_key = ''
+aws_secret_key = ''
+s3_bucket = ''
+s3_bucket_region = ''
