@@ -1,8 +1,18 @@
+import boto3
 import csv
-from redshift import rsm
-import sys
+import psycopg2
 import settings
 from slugify import Slugify
+import sys
+
+redshift = psycopg2.connect(
+    host=settings.DB_HOST,
+    port=settings.DB_PORT,
+    user=settings.DB_USER,
+    password=settings.DB_PASS,
+    database=settings.DB_NAME
+)
+redshift_cursor = redshift.cursor()
 
 # Set up custom_slugify
 custom_slugify = Slugify(to_lower=True)
@@ -14,31 +24,41 @@ table = custom_slugify(filename.split('.')[0] if len(sys.argv) < 4 else sys.argv
 # TODO: distinguish between filename and filepath
 grant = True if len(sys.argv) < 5 or sys.argv[4] != 'no-grant' else False
 
-# TODO: make sure schema exists
-# e.g. SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'ngpvan';
-# e.g. CREATE SCHEMA ngpvan
-# schema_exists_query = """SELECT table_schema
-# FROM information_schema.tables
-# WHERE table_schema = '%s'
-# LIMIT 1""" % schema
-#
-# schema_exists_result = rsm.db_query(schema_exists_query)
-# print schema_exists_result
+schema_exists_query = """SELECT table_schema
+FROM information_schema.tables
+WHERE table_schema = '%s'
+LIMIT 1""" % schema
 
-# TODO: grant usage if schema being created and grant = TRUE
-# e.g. GRANT USAGE ON SCHEMA ngpvan TO staff
+redshift_cursor.execute(schema_exists_query)
+schema_exists_results = list(redshift_cursor.fetchall())
 
-print 'Uploading file %s to S3 ...' % filename
+if len(schema_exists_results) == 0:
+    print("Creating schema %s and granting usage to staff...." % schema)
+    schema_create_query = "CREATE SCHEMA %s" % schema
+    redshift_cursor.execute(schema_create_query)
+    redshift.commit()
+    schema_grant_query = "GRANT USAGE ON SCHEMA %s to staff" % schema
+    redshift_cursor.execute(schema_grant_query)
+    redshift.commit()
 
-# TODO: use boto3 to upload the file
-# See: https://github.com/flyingsparx/FlaskDirectUploader/blob/master/application.py
+print('Uploading file %s to S3 ...' % filename)
 
-print 'Creating Redshift table %s.%s ...' % (schema, table)
+# TODO: get S3 upload working.
+
+aws_session = boto3.session.Session(
+  aws_access_key_id=settings.AWS['UPLOAD']['ACCESS_KEY'],
+  aws_secret_access_key=settings.AWS['UPLOAD']['SECRET_KEY'],
+  region_name=settings.AWS['UPLOAD']['REGION']
+)
+s3 = aws_session.client('s3')
+s3.upload_file(filename, settings.AWS['UPLOAD']['S3_BUCKET'], filename)
+
+print('Creating Redshift table %s.%s ...' % (schema, table))
 
 # Figure out the columns
 
 rows = []
-with open(filename, 'rb') as csvfile:
+with open(filename, 'rt') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
     for row in csvreader:
         rows.append(row)
@@ -56,35 +76,33 @@ create_table_sql = """CREATE TABLE %s.%s (
     %s
 )""" % (schema, table, column_sql)
 
-print create_table_sql
+print(create_table_sql)
 
-# TODO: Run create table in redshift
+redshift_cursor.execute(create_table_sql)
+redshift.commit()
 
-print 'Importing file %s into Redshift table %s.%s ...' % (filename, schema, table)
-
-# TODO: Run import table in redshift
-# e.g. COPY hustle.actions
-# (actions_created_date,groups_name,leads_external_id,leads_external_id_type,leads_first_name,leads_last_name,leads_phone_number,leads_email,goals_name,actions_value_str)
-# FROM 's3://hustle-integrations-export-bjtioat6at/actions.gzip'
-# CREDENTIALS 'aws_access_key_id=xxxxx;aws_secret_access_key=xxx'
-# csv gzip dateformat 'YYYY-MM-DD' region 'us-east-1' ignoreheader 1;
+print('Importing file %s into Redshift table %s.%s ...' % (filename, schema, table))
 
 copy_sql = """COPY %s.%s
 (%s)
 FROM 's3://%s/%s'
 CREDENTIALS 'aws_access_key_id=%s;aws_secret_access_key=%s'
-csv ignoreheader 1 acceptinvchars""" % (schema, table, ", ".join(columns), settings.s3_bucket, filename, settings.aws_access_key, settings.aws_secret_key)
+csv ignoreheader 1 acceptinvchars""" % (schema, table, ", ".join(columns), settings.AWS['COPY']['S3_BUCKET'], filename, settings.AWS['COPY']['ACCESS_KEY'], settings.AWS['COPY']['SECRET_KEY'])
 
-if settings.s3_bucket_region != None:
-    copy_sql = copy_sql + " region '%s'" % settings.s3_bucket_region
+if settings.AWS['COPY']['REGION'] != None:
+    copy_sql = copy_sql + " region '%s'" % settings.AWS['COPY']['REGION']
 
-print copy_sql
+print(copy_sql)
+
+redshift_cursor.execute(copy_sql)
+redshift.commit()
 
 if grant:
-    print 'Granting staff SELECT access to Redshift table %s.%s ...' % (schema, table)
+    print('Granting staff SELECT access to Redshift table %s.%s ...' % (schema, table))
 
     grant_sql = """GRANT SELECT ON %s.%s TO staff""" % (schema, table)
 
-    print grant_sql
+    print(grant_sql)
 
-    # TODO: Run GRANT in redshift
+    redshift_cursor.execute(grant_sql)
+    redshift.commit()
