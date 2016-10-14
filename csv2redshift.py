@@ -53,8 +53,6 @@ aws_session = boto3.session.Session(
 s3 = aws_session.client('s3')
 s3.upload_file(filename, settings.AWS['UPLOAD']['S3_BUCKET'], filename)
 
-print('Creating Redshift table %s.%s ...' % (schema, table))
-
 # Figure out the columns
 
 rows = []
@@ -65,21 +63,35 @@ with open(filename, 'rt') as csvfile:
 columns = rows[0]
 
 # TODO: Make sure column names are valid
-# TODO: Build create table statement
 
-column_statements = []
-for column in columns:
-    column_statements.append("%s VARCHAR(255)" % column)
-column_sql = """,
-    """.join(column_statements)
-create_table_sql = """CREATE TABLE %s.%s (
-    %s
-)""" % (schema, table, column_sql)
+# Check if table exists
 
-print(create_table_sql)
+table_exists_query = """SELECT table_schema
+FROM information_schema.tables
+WHERE table_schema = '%s'
+AND table_name = '%s'
+LIMIT 1""" % (schema, table)
 
-redshift_cursor.execute(create_table_sql)
-redshift.commit()
+redshift_cursor.execute(table_exists_query)
+table_exists_results = list(redshift_cursor.fetchall())
+
+if len(schema_exists_results) == 0:
+    print('Creating Redshift table %s.%s ...' % (schema, table))
+    column_statements = []
+    for column in columns:
+        column_statements.append("%s VARCHAR(255)" % column)
+    column_sql = """,
+        """.join(column_statements)
+    create_table_sql = """CREATE TABLE %s.%s (
+        %s
+    )""" % (schema, table, column_sql)
+
+    print(create_table_sql)
+
+    redshift_cursor.execute(create_table_sql)
+    redshift.commit()
+else:
+    print('Redshift table %s.%s already exists.' % (schema, table))
 
 print('Importing file %s into Redshift table %s.%s ...' % (filename, schema, table))
 
