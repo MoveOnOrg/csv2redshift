@@ -75,7 +75,7 @@ LIMIT 1""" % (schema, table)
 redshift_cursor.execute(table_exists_query)
 table_exists_results = list(redshift_cursor.fetchall())
 
-if len(schema_exists_results) == 0:
+if len(table_exists_results) == 0:
     print('Creating Redshift table %s.%s ...' % (schema, table))
     column_statements = []
     for column in columns:
