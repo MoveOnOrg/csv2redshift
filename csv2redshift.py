@@ -55,12 +55,9 @@ s3.upload_file(filename, settings.AWS['UPLOAD']['S3_BUCKET'], filename)
 
 # Figure out the columns
 
-rows = []
 with open(filename, 'rt') as csvfile:
     csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-    for row in csvreader:
-        rows.append(row)
-columns = rows[0]
+    columns = next(csvreader)
 
 # TODO: Make sure column names are valid
 
