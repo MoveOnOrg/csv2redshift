@@ -1,11 +1,15 @@
 # CSV2Redshift
 
-This script will take a local CSV file, upload it to S3, create a matching table in Redshift, then copy the contents from S3 to Redshift.
+This Python 3 script will take a local CSV file, upload it to S3, create a matching table in Redshift, then copy the contents from S3 to Redshift.
 
 Before running, do this:
 
-`pip3 install -r requirements.txt`
+`pip install -r requirements.txt`
 
 Usage looks like this:
 
-`python3.4 filename.csv schema_name table_name`
+`python csv2redshift.py --file filename.csv --schema schema_name --table table_name`
+
+To see all options:
+
+`python csv2redshift.py -h`

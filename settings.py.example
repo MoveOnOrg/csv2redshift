@@ -4,6 +4,7 @@ DB_HOST = ''
 DB_PORT = ''
 DB_PASS = ''
 DB_NAME = ''
+DB_GRANT_USER = ''
 
 # AWS credentials to upload to S3 and load from S3 to Redshift
 AWS = {
