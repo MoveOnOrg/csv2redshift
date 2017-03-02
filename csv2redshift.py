@@ -102,20 +102,23 @@ class CSV2Reshift:
         self.redshift_cursor.execute(create_table_sql)
         self.redshift.commit()
 
-    def get_copy_from_s3_sql(self, schema_name, table_name, columns, filename):
+    def get_copy_from_s3_sql(self, schema_name, table_name, columns, filename, tsv=False):
+        options = 'csv ignoreheader 1 acceptinvchars'
+        if tsv:
+            options = "delimiter '\t' ignoreheader 1 acceptinvchars"
         copy_sql = """COPY %s.%s
         (%s)
         FROM 's3://%s/%s'
         CREDENTIALS 'aws_access_key_id=%s;aws_secret_access_key=%s'
-        csv ignoreheader 1 acceptinvchars""" % (schema_name, table_name, ", ".join(columns), self.settings.AWS['COPY']['S3_BUCKET'], filename, self.settings.AWS['COPY']['ACCESS_KEY'], self.settings.AWS['COPY']['SECRET_KEY'])
+        %s""" % (schema_name, table_name, ", ".join(columns), self.settings.AWS['COPY']['S3_BUCKET'], filename, self.settings.AWS['COPY']['ACCESS_KEY'], self.settings.AWS['COPY']['SECRET_KEY'], options)
 
         if self.settings.AWS['COPY']['REGION'] != None:
             copy_sql = copy_sql + " region '%s'" % self.settings.AWS['COPY']['REGION']
 
         return copy_sql
 
-    def copy_from_s3(self, schema_name, table_name, columns, filename, print_sql=False):
-        copy_sql = self.get_copy_from_s3_sql(schema_name, table_name, columns, filename)
+    def copy_from_s3(self, schema_name, table_name, columns, filename, print_sql=False, tsv=False):
+        copy_sql = self.get_copy_from_s3_sql(schema_name, table_name, columns, filename, tsv)
         if print_sql:
             print(copy_sql)
         self.redshift_cursor.execute(copy_sql)
@@ -166,7 +169,7 @@ if __name__ == '__main__':
 
     if not args.nocopy:
         print('Importing file %s into Redshift table %s.%s ...' % (args.filename, args.schema, args.table))
-        csv2red.copy_from_s3(args.schema, args.table, columns, args.filename, args.printsql)
+        csv2red.copy_from_s3(args.schema, args.table, columns, args.filename, args.printsql, tsv=args.tsv)
 
     if not args.nogrant:
         print('Granting %s SELECT access to Redshift table %s.%s ...' % (settings.DB_GRANT_USER, args.schema, args.table))
