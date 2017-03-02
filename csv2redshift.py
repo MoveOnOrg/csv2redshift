@@ -56,9 +56,12 @@ class CSV2Reshift:
         s3 = aws_session.client('s3')
         s3.upload_file(filename, self.settings.AWS['UPLOAD']['S3_BUCKET'], filename)
 
-    def get_column_headers_from_csv(self, filename):
+    def get_column_headers_from_csv(self, filename, tsv=False):
         with open(filename, 'rt') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+            if tsv:
+                csvreader = csv.reader(csvfile, dialect='excel-tab')
+            else:
+                csvreader = csv.reader(csvfile, delimiter=',', quotechar='"')
             columns = [self.custom_slugify(column) for column in next(csvreader)]
             columns = [
                 'x' + column if column[0].isdigit()
@@ -138,11 +141,12 @@ if __name__ == '__main__':
     parser.add_argument('--nocreate', dest='nocreate', help='skip table creation', action='store_const', const=True, default=False)
     parser.add_argument('--nos3', dest='nos3', help='skip S3 upload', action='store_const', const=True, default=False)
     parser.add_argument('--nocopy', dest='nocopy', help='skip data COPY', action='store_const', const=True, default=False)
+    parser.add_argument('--tsv', dest='tsv', help='parse as TSV instead of CSV', action='store_const', const=True, default=False)
     parser.add_argument('--printsql', dest='printsql', help='print all executed SQL', action='store_const', const=True, default=False)
     args = parser.parse_args()
 
     csv2red = CSV2Reshift(settings)
-    columns = csv2red.get_column_headers_from_csv(args.filename)
+    columns = csv2red.get_column_headers_from_csv(args.filename, tsv=args.tsv)
 
     if not args.nocreate:
         if not csv2red.schema_exists(args.schema):
