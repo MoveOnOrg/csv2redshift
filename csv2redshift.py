@@ -86,6 +86,8 @@ class CSV2Reshift:
             return True
 
     def get_create_table_sql(self, schema_name, table_name, columns):
+        if columns is False:
+            return ''
         column_statements = []
         for column in columns:
             column_statements.append("%s VARCHAR(255)" % column)
@@ -103,14 +105,18 @@ class CSV2Reshift:
         self.redshift.commit()
 
     def get_copy_from_s3_sql(self, schema_name, table_name, columns, filename, tsv=False):
+        if columns is False:
+            column_include = ''
+        else:
+            column_include = "(%s)" % ", ".join(columns)
         options = 'csv ignoreheader 1 acceptinvchars'
         if tsv:
             options = "delimiter '\t' ignoreheader 1 acceptinvchars"
         copy_sql = """COPY %s.%s
-        (%s)
+        %s
         FROM 's3://%s/%s'
         CREDENTIALS 'aws_access_key_id=%s;aws_secret_access_key=%s'
-        %s""" % (schema_name, table_name, ", ".join(columns), self.settings.AWS['COPY']['S3_BUCKET'], filename, self.settings.AWS['COPY']['ACCESS_KEY'], self.settings.AWS['COPY']['SECRET_KEY'], options)
+        %s""" % (schema_name, table_name, column_include, self.settings.AWS['COPY']['S3_BUCKET'], filename, self.settings.AWS['COPY']['ACCESS_KEY'], self.settings.AWS['COPY']['SECRET_KEY'], options)
 
         if self.settings.AWS['COPY']['REGION'] != None:
             copy_sql = copy_sql + " region '%s'" % self.settings.AWS['COPY']['REGION']
@@ -145,11 +151,17 @@ if __name__ == '__main__':
     parser.add_argument('--nos3', dest='nos3', help='skip S3 upload', action='store_const', const=True, default=False)
     parser.add_argument('--nocopy', dest='nocopy', help='skip data COPY', action='store_const', const=True, default=False)
     parser.add_argument('--tsv', dest='tsv', help='parse as TSV instead of CSV', action='store_const', const=True, default=False)
+    parser.add_argument('--nocolumns', dest='nocolumns', help='skip getting columns', action='store_const', const=True, default=False)
+
     parser.add_argument('--printsql', dest='printsql', help='print all executed SQL', action='store_const', const=True, default=False)
     args = parser.parse_args()
 
     csv2red = CSV2Reshift(settings)
-    columns = csv2red.get_column_headers_from_csv(args.filename, tsv=args.tsv)
+
+    if args.nocolumns:
+        columns = False
+    else:
+        columns = csv2red.get_column_headers_from_csv(args.filename, tsv=args.tsv)
 
     if not args.nocreate:
         if not csv2red.schema_exists(args.schema):
