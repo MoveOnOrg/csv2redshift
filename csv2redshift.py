@@ -109,9 +109,17 @@ class CSV2Reshift:
             column_include = ''
         else:
             column_include = "(%s)" % ", ".join(columns)
-        options = 'csv ignoreheader 1 acceptinvchars'
+
         if tsv:
-            options = "delimiter '\\t' ignoreheader 1 acceptinvchars NULL AS '\\000'"
+            options = "delimiter '\\t' NULL AS '\\000' "
+        else:
+            options = 'csv '
+
+        if columns is not False:
+            options += 'ignoreheader 1 '
+
+        options += 'acceptinvchars'
+
         copy_sql = """COPY %s.%s
         %s
         FROM 's3://%s/%s'
