@@ -19,7 +19,9 @@ class CSV2Reshift:
         self.custom_slugify.separator = '_'
 
     def schema_exists(self, schema_name):
-
+        """
+        Check if schema with given name exists in Redshift
+        """
         schema_exists_query = """SELECT table_schema
         FROM information_schema.tables
         WHERE table_schema = '%s'
@@ -34,6 +36,9 @@ class CSV2Reshift:
             return True
 
     def create_schema(self, schema_name, print_sql=False):
+        """
+        Create a schema with given name.
+        """
         schema_create_query = "CREATE SCHEMA %s" % schema_name
         if print_sql:
             print(schema_create_query)
@@ -41,6 +46,9 @@ class CSV2Reshift:
         self.redshift.commit()
 
     def grant_usage(self, schema_name, user_name, print_sql=False):
+        """
+        Grant usage a schema with given name.
+        """
         schema_grant_query = "GRANT USAGE ON SCHEMA %s to %s" % (schema_name, user_name)
         if print_sql:
             print(schema_grant_query)
@@ -48,6 +56,9 @@ class CSV2Reshift:
         self.redshift.commit()
 
     def upload_file_to_s3(self, filename):
+        """
+        Upload given file name to S3.
+        """
         aws_session = boto3.session.Session(
           aws_access_key_id=self.settings.AWS['UPLOAD']['ACCESS_KEY'],
           aws_secret_access_key=self.settings.AWS['UPLOAD']['SECRET_KEY'],
@@ -57,6 +68,9 @@ class CSV2Reshift:
         s3.upload_file(filename, self.settings.AWS['UPLOAD']['S3_BUCKET'], filename)
 
     def get_column_headers_from_csv(self, filename, tsv=False):
+        """
+        Get list of valid column headers from CSV (or optionally TSV)
+        """
         with open(filename, 'rt') as csvfile:
             if tsv:
                 csvreader = csv.reader(csvfile, dialect='excel-tab')
@@ -71,6 +85,9 @@ class CSV2Reshift:
         return columns
 
     def table_exists(self, schema_name, table_name):
+        """
+        Check if given table exists within given schema.
+        """
         table_exists_query = """SELECT table_schema
         FROM information_schema.tables
         WHERE table_schema = '%s'
@@ -86,6 +103,9 @@ class CSV2Reshift:
             return True
 
     def get_create_table_sql(self, schema_name, table_name, columns):
+        """
+        Generate SQL to create table with given schema, name, and columns.
+        """
         if columns is False:
             return ''
         column_statements = []
@@ -98,6 +118,9 @@ class CSV2Reshift:
         )""" % (schema_name, table_name, column_sql)
 
     def create_table(self, schema_name, table_name, columns, print_sql=False):
+        """
+        Create table with given schema, name, and columns.
+        """
         create_table_sql = self.get_create_table_sql(schema_name, table_name, columns)
         if print_sql:
             print(create_table_sql)
@@ -105,6 +128,9 @@ class CSV2Reshift:
         self.redshift.commit()
 
     def get_copy_from_s3_sql(self, schema_name, table_name, columns, filename, tsv=False):
+        """
+        Generate SQL to COPY given CSV (or TSV) file from S3 into Redshift.
+        """
         if columns is False:
             column_include = ''
         else:
@@ -132,6 +158,10 @@ class CSV2Reshift:
         return copy_sql
 
     def copy_from_s3(self, schema_name, table_name, columns, filename, print_sql=False, tsv=False):
+        """
+        COPY given CSV (or TSV) file from S3 into given schema and table in
+        Redshift.
+        """
         copy_sql = self.get_copy_from_s3_sql(schema_name, table_name, columns, filename, tsv)
         if print_sql:
             print(copy_sql)
@@ -139,6 +169,9 @@ class CSV2Reshift:
         self.redshift.commit()
 
     def grant_select_on_table(self, schema_name, table_name, user_name, print_sql=False):
+        """
+        GRANT SELECT on given schema and table to given user.
+        """
         grant_sql = """GRANT SELECT ON %s.%s TO %s""" % (schema_name, table_name, user_name)
         if print_sql:
             print(grant_sql)
