@@ -82,7 +82,13 @@ class CSV2Reshift:
                 else column
                 for column in columns
             ]
-        return columns
+            deduped_columns = []
+            for column in columns:
+                if column in deduped_columns:
+                    deduped_columns.append(column + '2')
+                else:
+                    deduped_columns.append(column)
+        return deduped_columns
 
     def table_exists(self, schema_name, table_name):
         """
