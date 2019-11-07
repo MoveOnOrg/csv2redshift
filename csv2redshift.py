@@ -194,6 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('--schema', dest='schema', help='database schema')
     parser.add_argument('--table', dest='table', help='database table')
     parser.add_argument('--nogrant', dest='nogrant', help='skip table grant', action='store_const', const=True, default=False)
+    parser.add_argument('--grant', dest='grant', help='run grant for a different user than default', default=settings.DB_GRANT_USER)
     parser.add_argument('--nocreate', dest='nocreate', help='skip table creation', action='store_const', const=True, default=False)
     parser.add_argument('--nos3', dest='nos3', help='skip S3 upload', action='store_const', const=True, default=False)
     parser.add_argument('--nocopy', dest='nocopy', help='skip data COPY', action='store_const', const=True, default=False)
@@ -215,7 +216,7 @@ if __name__ == '__main__':
             print("Creating schema %s and granting usage to %s...." % (args.schema, settings.DB_GRANT_USER))
             csv2red.create_schema(args.schema, args.printsql)
             if not args.nogrant:
-                csv2red.grant_usage(args.schema, settings.DB_GRANT_USER, args.printsql)
+                csv2red.grant_usage(args.schema, args.grant, args.printsql)
         if not csv2red.table_exists(args.schema, args.table):
             print('Creating Redshift table %s.%s ...' % (args.schema, args.table))
             csv2red.create_table(args.schema, args.table, columns, args.printsql)
