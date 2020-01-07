@@ -213,24 +213,24 @@ if __name__ == '__main__':
 
     if not args.nocreate:
         if not csv2red.schema_exists(args.schema):
-            print("Creating schema %s and granting usage to %s...." % (args.schema, settings.DB_GRANT_USER))
+            print(("Creating schema %s and granting usage to %s...." % (args.schema, settings.DB_GRANT_USER)))
             csv2red.create_schema(args.schema, args.printsql)
             if not args.nogrant:
                 csv2red.grant_usage(args.schema, args.grant, args.printsql)
         if not csv2red.table_exists(args.schema, args.table):
-            print('Creating Redshift table %s.%s ...' % (args.schema, args.table))
+            print(('Creating Redshift table %s.%s ...' % (args.schema, args.table)))
             csv2red.create_table(args.schema, args.table, columns, args.printsql)
         else:
-            print('Redshift table %s.%s already exists.' % (args.schema, args.table))
+            print(('Redshift table %s.%s already exists.' % (args.schema, args.table)))
 
     if not args.nos3:
-        print('Uploading file %s to S3 ...' % args.filename)
+        print(('Uploading file %s to S3 ...' % args.filename))
         csv2red.upload_file_to_s3(args.filename)
 
     if not args.nocopy:
-        print('Importing file %s into Redshift table %s.%s ...' % (args.filename, args.schema, args.table))
+        print(('Importing file %s into Redshift table %s.%s ...' % (args.filename, args.schema, args.table)))
         csv2red.copy_from_s3(args.schema, args.table, columns, args.filename, args.printsql, tsv=args.tsv)
 
     if not args.nogrant:
-        print('Granting %s SELECT access to Redshift table %s.%s ...' % (settings.DB_GRANT_USER, args.schema, args.table))
+        print(('Granting %s SELECT access to Redshift table %s.%s ...' % (settings.DB_GRANT_USER, args.schema, args.table)))
         csv2red.grant_select_on_table(args.schema, args.table, settings.DB_GRANT_USER, args.printsql)
